@@ -1,0 +1,48 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.inputBox {
+  width: 400px;
+  height: 40px;
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.outputBox {
+  width: 400px;
+  height: 80px;
+  font-size: 20px;
+  border: 1px solid #ccc;
+  padding: 10px;
+}
+
+.highlightedWord {
+  display: inline-block;
+  border: 1px solid #ff0000;
+}
+
+.recipe-container {
+  display: flex;
+  justify-content: center;
+}
+
+.stored-recipes {
+  width: 300px;
+  padding: 20px;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+}
+
+.recipe-box {
+  cursor: pointer;
+  margin-bottom: 10px;
+  padding: 8px;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
