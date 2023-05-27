@@ -48,26 +48,29 @@ class RecipeApp extends React.Component {
 
   updateShoppingList = (ingredients) => {
     const updatedShoppingList = { ...this.state.shoppingList };
-
+  
     ingredients.forEach((ingredient) => {
       const spaceIndex = ingredient.indexOf(' ');
-      const quantity = ingredient.slice(0, spaceIndex);
-      const ingredientName = ingredient.slice(spaceIndex + 1);
-
-      let parsedQuantity;
-      if (quantity) {
-        parsedQuantity = this.parseQuantity(quantity);
+      let quantity;
+      let ingredientName;
+  
+      if (spaceIndex === -1) {
+        quantity = '1';
+        ingredientName = ingredient;
       } else {
-        parsedQuantity = 1;
+        quantity = ingredient.slice(0, spaceIndex);
+        ingredientName = ingredient.slice(spaceIndex + 1);
       }
-
+  
+      const parsedQuantity = this.parseQuantity(quantity);
+  
       if (updatedShoppingList[ingredientName]) {
         updatedShoppingList[ingredientName] += parsedQuantity;
       } else {
         updatedShoppingList[ingredientName] = parsedQuantity;
       }
     });
-
+  
     this.setState({
       currentRecipe: '',
       shoppingList: updatedShoppingList,
@@ -95,10 +98,15 @@ class RecipeApp extends React.Component {
   };
 
   parseQuantity = (quantity) => {
+    if (quantity.trim() === '') {
+      return 1; // Default to 1 if no quantity is provided
+    }
+  
     if (quantity.includes('/')) {
       const [numerator, denominator] = quantity.split('/');
       return parseFloat(numerator) / parseFloat(denominator);
     }
+  
     return parseFloat(quantity);
   };
 
