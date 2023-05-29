@@ -26,16 +26,58 @@
   border: 1px solid #ff0000;
 }
 
+.center-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.owned-quantity {
+  margin: 0 5px;
+}
+
+.red {
+  color: red;
+}
+
+.green {
+  color: green;
+}
+
+.add-recipe-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+}
+
 .recipe-container {
   display: flex;
   justify-content: center;
 }
 
-.stored-recipes {
+.stored-recipes,
+.owned-ingredients {
   width: 300px;
   padding: 20px;
   background-color: #f0f0f0;
   border: 1px solid #ccc;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.recipe-name {
+  margin-right: 10px;
+  flex: 1;
+}
+
+.recipe-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-gap: 10px;
 }
 
 .recipe-box {
@@ -45,4 +87,63 @@
   background-color: #fff;
   border: 1px solid #ccc;
   border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.owned-ingredient {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  grid-gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.owned-ingredients ul {
+  list-style: none;
+  padding: 0;
+}
+
+.owned-ingredients li {
+  margin-bottom: 8px;
+}
+
+.owned-ingredients input {
+  width: 60px;
+}
+
+.delete-button {
+  color: red;
+  font-weight: bold;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.add-button {
+  margin-left: 10px;
+  margin-right: 10px;
+}
+
+.ingredient-heading {
+  font-weight: bold;
+}
+
+.ingredient {
+  font-weight: bold;
+}
+
+.quantity-heading {
+  font-weight: bold;
+  text-align: center;
+}
+
+.quantity {
+  text-align: center;
+}
+
+.action-heading {
+  font-weight: bold;
+  text-align: center;
 }
