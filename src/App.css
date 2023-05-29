@@ -71,6 +71,13 @@
 
 .recipe-name {
   margin-right: 10px;
+  flex: 1;
+}
+
+.recipe-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-gap: 10px;
 }
 
 .recipe-box {
@@ -116,6 +123,7 @@
 
 .add-button {
   margin-left: 10px;
+  margin-right: 10px;
 }
 
 .ingredient-heading {

@@ -23,80 +23,123 @@ class RecipeApp extends React.Component {
     localStorage.setItem('recipes', JSON.stringify(this.state.recipes));
     localStorage.setItem('shoppingList', JSON.stringify(this.state.shoppingList));
     localStorage.setItem('ownedIngredients', JSON.stringify(this.state.ownedIngredients));
-  }
+  };
 
   handleRecipeChange = (event) => {
     this.setState({ currentRecipe: event.target.value });
   };
 
-    /**
+  containsNumberAndIngredient(input) {
+    const regex = /^\d+(\.\d+)?\s+\w+/; // Matches a number followed by a space and a word character (\w)
+    return regex.test(input);
+  };
+  
+  // Function to prompt user for input
+  getUserInput() {
+    const userInput = prompt('Enter an ingredient or a quantity followed by an ingredient:');
+  
+    if (this.containsNumberAndIngredient(userInput)) {
+      // If the input contains a number followed by an ingredient
+      const match = userInput.match(/^(\d+(\.\d+)?)\s+(.+)/); // Match the quantity and ingredient
+      if (match) {
+        const quantity = parseFloat(match[1]); // Extract the quantity
+        const ingredient = match[3].trim(); // Extract the ingredient and remove leading/trailing spaces
+        return { quantity, ingredient };
+      }
+    } else {
+      // If the input is just an ingredient
+      const quantity = parseFloat(prompt('Enter the quantity for the ingredient:'));
+      return { quantity, ingredient: userInput.trim() }; // Remove leading/trailing spaces from the ingredient
+    }
+    
+    // If the input format is invalid or the user cancels the prompt
+    return null;
+  };
+  
+  
+
+  /**
    * Adds an owned ingredient based on user input.
    */
   addOwnedIngredient = () => {
     // Prompt the user to enter the ingredient and quantity
-    const ingredient = window.prompt('Enter the ingredient:');
-    const quantity = window.prompt('Enter the quantity:');
-
+    const getUserInput = this.getUserInput();
+    const quantity = getUserInput.quantity;
+    const ingredient = getUserInput.ingredient.toLowerCase().trim(); // Convert to lowercase and remove leading/trailing spaces
+    
     if (ingredient && quantity) {
       // Retrieve the shoppingList and ownedIngredients from the state
       const { shoppingList, ownedIngredients } = this.state;
       const updatedShoppingList = { ...shoppingList };
       const updatedOwnedIngredients = { ...ownedIngredients };
-
-      if (updatedShoppingList[ingredient]) {
-        // If the ingredient is already in the shoppingList, remove the quantity from the shoppingList
-        const removedQuantity = Math.min(updatedShoppingList[ingredient], parseInt(quantity, 10));
-        updatedShoppingList[ingredient] -= removedQuantity;
-
-        if (updatedOwnedIngredients[ingredient]) {
-          // If the ingredient is already in the ownedIngredients, update the used and remaining quantities
-          updatedOwnedIngredients[ingredient].used += removedQuantity;
-          updatedOwnedIngredients[ingredient].remaining -= removedQuantity;
-        } else {
-          // If the ingredient is not in the ownedIngredients, create a new entry with the used and remaining quantities
-          updatedOwnedIngredients[ingredient] = {
-            used: removedQuantity,
-            remaining: removedQuantity,
-          };
+    
+      // Function to handle pluralization of ingredient names
+      const handlePluralization = (ingredient) => {
+        // Remove the "s" at the end if it exists
+        if (ingredient.endsWith('s')) {
+          return ingredient.slice(0, -1);
         }
-
-        if (updatedShoppingList[ingredient] === 0) {
-          // If the shoppingList quantity becomes zero, remove the ingredient from the shoppingList
-          delete updatedShoppingList[ingredient];
-        }
+        return ingredient;
+      };
+    
+      // Check if the ingredient exists in ownedIngredients using case-insensitive comparison
+      const existingIngredient = Object.keys(updatedOwnedIngredients).find((key) =>
+        handlePluralization(key.toLowerCase().trim()) === ingredient
+      );
+    
+      if (existingIngredient) {
+        // If the ingredient is already in the ownedIngredients, update the remaining quantity
+        updatedOwnedIngredients[existingIngredient].remaining += parseFloat(quantity);
       } else {
-        // If the ingredient is not in the shoppingList, update the ownedIngredients
-        if (updatedOwnedIngredients[ingredient]) {
-          // If the ingredient is already in the ownedIngredients, update the remaining quantity
-          updatedOwnedIngredients[ingredient].remaining += parseInt(quantity, 10);
-        } else {
-          // If the ingredient is not in the ownedIngredients, create a new entry with the used and remaining quantities
-          updatedOwnedIngredients[ingredient] = {
-            used: 0,
-            remaining: parseInt(quantity, 10) - (updatedOwnedIngredients[ingredient]?.used || 0),
+        // If the ingredient is not in the ownedIngredients, create a new entry with the used and remaining quantities
+        updatedOwnedIngredients[ingredient] = {
+          used: 0,
+          remaining: parseFloat(quantity),
+        };
+      }
+    
+      // Check if the ingredient exists in shoppingList using case-insensitive comparison
+      const matchingIngredient = Object.keys(updatedShoppingList).find((key) =>
+        handlePluralization(key.toLowerCase().trim()) === ingredient
+      );
+    
+      if (matchingIngredient) {
+        // Calculate the remaining quantity needed for the shopping list
+        const neededQuantity = Math.max(updatedShoppingList[matchingIngredient] - updatedOwnedIngredients[matchingIngredient].remaining, 0);
+        const oldRemaining = updatedOwnedIngredients[matchingIngredient].remaining;
+        const oldUsed = updatedOwnedIngredients[matchingIngredient].used;
+    
+        if (neededQuantity > 0) {
+          // Update the shopping list if there's still a need for the ingredient
+          updatedShoppingList[matchingIngredient] = neededQuantity;
+          updatedOwnedIngredients[matchingIngredient] = {
+            used: oldUsed + oldRemaining,
+            remaining: 0,
           };
+        } else {
+          // If the needed quantity is zero or less, remove the ingredient from the shopping list
+          updatedOwnedIngredients[matchingIngredient] = {
+            used: oldUsed + updatedShoppingList[matchingIngredient],
+            remaining: oldRemaining - updatedShoppingList[matchingIngredient],
+          };
+          delete updatedShoppingList[matchingIngredient];
         }
       }
-
-      // Update the state with the updated shoppingList, ownedIngredients, and trigger the updateShoppingListFromOwned function
-      this.setState(
-        {
-          shoppingList: updatedShoppingList,
-          ownedIngredients: updatedOwnedIngredients,
-        },
-        () => {
-          this.updateShoppingListFromOwned();
-        }
-      );
+    
+      // Update the state with the updated shoppingList and ownedIngredients
+      this.setState({
+        shoppingList: updatedShoppingList,
+        ownedIngredients: updatedOwnedIngredients,
+      });
     }
   };
-
+  
 
   handleStoredRecipeClick = (recipeName) => {
     const { recipes } = this.state;
     const recipeIngredients = recipes[recipeName];
     if (recipeIngredients) {
-      this.updateShoppingList(recipeIngredients);
+      this.updateShoppingListFromRecipe(recipeIngredients);
     }
   };
   
@@ -125,10 +168,36 @@ class RecipeApp extends React.Component {
     }
   };
 
-  updateShoppingList = (ingredients) => {
+  
+  handleEditRecipe = (recipeName) => {
+    // Retrieve the recipes from the state
+    const { recipes } = this.state;
+
+    // Prompt the user to enter the updated recipe name and ingredients
+    const updatedRecipeName = window.prompt('Enter the updated recipe name:', recipeName);
+    const updatedRecipeIngredients = window.prompt('Enter the updated recipe ingredients (separated by commas):', recipes[recipeName].join(', '));
+
+    if (updatedRecipeName && updatedRecipeIngredients) {
+      // Split the ingredients by commas and trim any leading/trailing spaces
+      const ingredients = updatedRecipeIngredients.split(',').map((ingredient) => ingredient.trim());
+
+      // Create a copy of the recipes object and update the recipe with the new name and ingredients
+      const updatedRecipes = { ...recipes, [updatedRecipeName]: ingredients };
+
+      // Remove the original recipe if the name has changed
+      if (recipeName !== updatedRecipeName) {
+        delete updatedRecipes[recipeName];
+      }
+
+      // Update the state with the updated recipes
+      this.setState({ recipes: updatedRecipes });
+    }
+  };
+
+  updateShoppingListFromRecipe = (ingredients) => {
     // Retrieve the ownedIngredients and shoppingList from the state
-    const { ownedIngredients } = this.state;
-    const updatedShoppingList = { ...this.state.shoppingList };
+    const { ownedIngredients,shoppingList } = this.state;
+    const updatedShoppingList = { ...shoppingList };
     const updatedOwnedIngredients = { ...ownedIngredients };
   
     // Loop through each ingredient
@@ -153,18 +222,22 @@ class RecipeApp extends React.Component {
       const ownedQuantity = ownedIngredients[ingredientName]?.remaining || 0;
   
       // Calculate the remaining quantity needed for the ingredient
-      const remainingQuantity = parsedQuantity - ownedQuantity;
+      const neededQuantity = parsedQuantity - ownedQuantity;
   
       // Update the shopping list if there's still a need for the ingredient
-      if (remainingQuantity > 0) {
-        updatedShoppingList[ingredientName] = (updatedShoppingList[ingredientName] || 0) + remainingQuantity;
+      if (neededQuantity > 0) {
+        updatedShoppingList[ingredientName] = (updatedShoppingList[ingredientName] || 0) + neededQuantity;
       }
   
       // Update owned ingredient quantities
-      if (ownedQuantity > 0) {
-        updatedOwnedIngredients[ingredientName].remaining = Math.max(0, remainingQuantity);
-        updatedOwnedIngredients[ingredientName].used = Math.max(0, parsedQuantity);
+      if (ownedQuantity > 0 && neededQuantity < 0) {
+        updatedOwnedIngredients[ingredientName].remaining = Math.abs(neededQuantity);
+        updatedOwnedIngredients[ingredientName].used += parsedQuantity;
+      } else if (ownedQuantity > 0){
+        updatedOwnedIngredients[ingredientName].used += updatedOwnedIngredients[ingredientName].remaining
+        updatedOwnedIngredients[ingredientName].remaining = 0;
       }
+      
     });
   
     // Update the state with the updated shopping list, owned ingredients, and current recipe
@@ -175,59 +248,11 @@ class RecipeApp extends React.Component {
         ownedIngredients: updatedOwnedIngredients,
       },
       () => {
-        // After updating the state, trigger the updateShoppingListFromOwned function
-        this.updateShoppingListFromOwned();
+        // After updating the state, trigger the renderShoppingList function
+        this.renderShoppingList();
       }
     );
   };
-
-  /**
- * Updates the shopping list based on the owned ingredients.
- */
-updateShoppingListFromOwned = () => {
-  // Destructure the shoppingList and ownedIngredients from the state
-  const { shoppingList, ownedIngredients } = this.state;
-
-  // Create copies of the original shoppingList and ownedIngredients
-  const updatedShoppingList = { ...shoppingList };
-  const updatedOwnedIngredients = { ...ownedIngredients };
-
-  // Iterate over each owned ingredient
-  for (const [ingredient, quantity] of Object.entries(ownedIngredients)) {
-    // Destructure the used and remaining quantities from the current ingredient
-    const { used, remaining } = quantity;
-
-    // Check if the ingredient is already in the shoppingList
-    if (shoppingList[ingredient]) {
-      // Calculate the remaining quantity of the ingredient
-      const remainingQuantity = Math.max(shoppingList[ingredient] - used, 0);
-
-      // Update the owned ingredient with the used and remaining quantities
-      updatedOwnedIngredients[ingredient] = {
-        used,
-        remaining: remainingQuantity,
-      };
-
-      // If the remaining quantity is zero or less, remove the ingredient from the shoppingList
-      if (remainingQuantity <= 0) {
-        delete updatedShoppingList[ingredient];
-      }
-    } else {
-      // If the ingredient is not in the shoppingList, update the owned ingredient with the used and remaining quantities
-      updatedOwnedIngredients[ingredient] = {
-        used,
-        remaining,
-      };
-    }
-  }
-
-  // Update the state with the updated shoppingList and ownedIngredients
-  this.setState({
-    shoppingList: updatedShoppingList,
-    ownedIngredients: updatedOwnedIngredients,
-  });
-};
-
 
   addNewRecipe = (recipeName) => {
     const ingredients = window.prompt('Enter the ingredients (separated by commas):');
@@ -282,13 +307,13 @@ updateShoppingListFromOwned = () => {
                 type="number"
                 value={quantity.used}
                 onChange={(event) => this.handleOwnedIngredientUsedChange(event, ingredient)}
-                className={quantity.used > 0 ? 'red' : 'green'}
+                className='red'
               />
               <input
                 type="number"
                 value={quantity.remaining}
                 onChange={(event) => this.handleOwnedIngredientRemainingChange(event, ingredient)}
-                className={quantity.used > 0 ? 'red' : 'green'}
+                className='green'
               />
               <button onClick={() => this.removeOwnedIngredient(ingredient)}>Remove</button>
             </div>
@@ -296,26 +321,7 @@ updateShoppingListFromOwned = () => {
         })}
       </div>
     );
-  };
- 
-  
-  handleAddRecipe = (recipe) => {
-    const { shoppingList } = this.state;
-    const updatedShoppingList = { ...shoppingList };
-  
-    recipe.ingredients.forEach((ingredient) => {
-      const { name, quantity } = ingredient;
-  
-      if (updatedShoppingList[name]) {
-        updatedShoppingList[name] += quantity;
-      } else {
-        updatedShoppingList[name] = quantity;
-      }
-    });
-  
-    this.setState({ shoppingList: updatedShoppingList });
-  };
-  
+  };  
 
   handleOwnedIngredientUsedChange = (event, ingredient) => {
     const { ownedIngredients } = this.state;
@@ -356,38 +362,53 @@ updateShoppingListFromOwned = () => {
     });
   };
 
- /**
- * Handles the change event for the remaining quantity of an owned ingredient.
- * @param {Event} event - The change event object.
- * @param {string} ingredient - The name of the ingredient being updated.
- */
-handleOwnedIngredientRemainingChange = (event, ingredient) => {
-  // Retrieve the ownedIngredients from the state
-  const { ownedIngredients } = this.state;
+  /**
+   * Handles the change event for the remaining quantity of an owned ingredient.
+   * @param {Event} event - The change event object.
+   * @param {string} ingredient - The name of the ingredient being updated.
+   */
+  handleOwnedIngredientRemainingChange = (event, ingredient) => {
+    // Retrieve the ownedIngredients from the state
+    const { ownedIngredients } = this.state;
 
-  // Extract the remaining quantity value from the event target
-  const remaining = event.target.value.trim() === '' ? 0 : parseInt(event.target.value, 10);
+    // Extract the remaining quantity value from the event target
+    const remaining = event.target.value.trim() === '' ? 0 : parseInt(event.target.value, 10);
 
-  // Create a copy of the ownedIngredients with the updated remaining quantity for the specified ingredient
-  const updatedOwnedIngredients = {
-    ...ownedIngredients,
-    [ingredient]: {
-      ...ownedIngredients[ingredient],
-      remaining,
-    },
+    // Create a copy of the ownedIngredients with the updated remaining quantity for the specified ingredient
+    const updatedOwnedIngredients = {
+      ...ownedIngredients,
+      [ingredient]: {
+        ...ownedIngredients[ingredient],
+        remaining,
+      },
+    };
+
+    // Update the state with the updated ownedIngredients
+    this.setState({ ownedIngredients: updatedOwnedIngredients });
+    this.renderShoppingList()
   };
 
-  // Update the state with the updated ownedIngredients
-  this.setState({ ownedIngredients: updatedOwnedIngredients });
-};
-
+  updateOwnedIngredientsExit = () => {
+    const { ownedIngredients } = this.state;
+    const updatedOwnedIngredients = { ...ownedIngredients };
   
+    Object.keys(updatedOwnedIngredients).forEach(key => {
+      updatedOwnedIngredients[key].used = 0;
+    });
+  
+    this.setState({
+      ownedIngredients: updatedOwnedIngredients,
+    });
+    window.close()
+  };
+  
+
   renderShoppingList = () => {
     const { shoppingList, ownedIngredients } = this.state;
 
     return Object.keys(shoppingList).map((ingredientName, index) => {
       const shoppingQuantity = shoppingList[ingredientName];
-      const ownedQuantity = ownedIngredients[ingredientName]?.quantity || 0;
+      const ownedQuantity = ownedIngredients[ingredientName]?.remaining|| 0;
       const remainingQuantity = shoppingQuantity - ownedQuantity;
 
       if (remainingQuantity <= 0) {
@@ -399,6 +420,12 @@ handleOwnedIngredientRemainingChange = (event, ingredient) => {
           {remainingQuantity} {ingredientName}
         </div>
       );
+    });
+  };
+
+  toTitleCase(str) {
+    return str.replace(/\w\S*/g, function(txt) {
+      return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
     });
   };
 
@@ -435,12 +462,15 @@ handleOwnedIngredientRemainingChange = (event, ingredient) => {
             {Object.keys(recipes).length === 0 ? (
               <p>No recipes stored</p>
             ) : (
-              <div>
+              <div className='recipe-list'>
                 {Object.keys(recipes).map((recipeName, index) => (
                   <div key={index} className="recipe-box">
-                    <span className="recipe-name">{recipeName}</span>
+                    <span className="recipe-name">{this.toTitleCase(recipeName)}</span>
                     <button className="add-button" onClick={() => this.handleStoredRecipeClick(recipeName)}>
                       Add to Shopping List
+                    </button>
+                    <button className="edit-button" onClick={() => this.handleEditRecipe(recipeName)}>
+                      <i className="fas fa-cog"></i>
                     </button>
                     <button className="delete-button" onClick={() => this.deleteRecipe(recipeName)}>
                       &times;
@@ -460,6 +490,7 @@ handleOwnedIngredientRemainingChange = (event, ingredient) => {
               </div>
             {this.renderOwnedIngredients()} {/* Render owned ingredients using the method */}
             <button onClick={this.addOwnedIngredient}>Add Ingredient</button>
+            <button onClick={this.updateOwnedIngredientsExit}>Save updated owned ingredients and exit.</button>
           </div>
         </div>
       </div>
