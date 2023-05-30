@@ -1,6 +1,30 @@
 import React from 'react';
 import './App.css';
 
+// Function to handle pluralization of ingredient names
+function handlePluralization(ingredient) {
+  // Remove the "s" at the end if it exists
+  return ingredient.replace(/\b(\w+)s\b/g, '$1');
+}
+
+//function to test if different ingredients match
+function ingredientMatch(ingredient1,ingredient2) {
+  if (ingredient1 === ingredient2){
+    return true
+  }
+  const singularIngredient1 = handlePluralization(ingredient1)
+  const singularIngredient2 = handlePluralization(ingredient2)
+  if (singularIngredient1 === singularIngredient2) {
+    return true
+  }
+  const singularIngredient1Lower = singularIngredient1.toLowerCase().trim()
+  const singularIngredient2Lower = singularIngredient2.toLowerCase().trim()
+  if (singularIngredient1Lower === singularIngredient2Lower) {
+    return true
+  }
+  return false
+}
+
 class RecipeApp extends React.Component {
   constructor(props) {
     super(props);
@@ -37,7 +61,9 @@ class RecipeApp extends React.Component {
   // Function to prompt user for input
   getUserInput() {
     const userInput = prompt('Enter an ingredient or a quantity followed by an ingredient:');
-  
+    if (typeof userInput == 'null') {
+      return;
+    }
     if (this.containsNumberAndIngredient(userInput)) {
       // If the input contains a number followed by an ingredient
       const match = userInput.match(/^(\d+(\.\d+)?)\s+(.+)/); // Match the quantity and ingredient
@@ -56,8 +82,6 @@ class RecipeApp extends React.Component {
     return null;
   };
   
-  
-
   /**
    * Adds an owned ingredient based on user input.
    */
@@ -65,64 +89,55 @@ class RecipeApp extends React.Component {
     // Prompt the user to enter the ingredient and quantity
     const getUserInput = this.getUserInput();
     const quantity = getUserInput.quantity;
-    const ingredient = getUserInput.ingredient.toLowerCase().trim(); // Convert to lowercase and remove leading/trailing spaces
+    const ingredient = getUserInput.ingredient; // Convert to lowercase and remove leading/trailing spaces
     
     if (ingredient && quantity) {
       // Retrieve the shoppingList and ownedIngredients from the state
       const { shoppingList, ownedIngredients } = this.state;
       const updatedShoppingList = { ...shoppingList };
       const updatedOwnedIngredients = { ...ownedIngredients };
-    
-      // Function to handle pluralization of ingredient names
-      const handlePluralization = (ingredient) => {
-        // Remove the "s" at the end if it exists
-        if (ingredient.endsWith('s')) {
-          return ingredient.slice(0, -1);
-        }
-        return ingredient;
-      };
-    
+
+      // Check if the ingredient exists in shoppingList using case-insensitive comparison
+      const matchingKeyShoppingList = Object.keys(updatedShoppingList).find((key) =>
+        (ingredientMatch(key,ingredient)===true)
+      );    
       // Check if the ingredient exists in ownedIngredients using case-insensitive comparison
-      const existingIngredient = Object.keys(updatedOwnedIngredients).find((key) =>
-        handlePluralization(key.toLowerCase().trim()) === ingredient
+      let matchingKeyOwnedIngredients = Object.keys(updatedOwnedIngredients).find((key) =>
+        (ingredientMatch(key,ingredient)===true)
       );
     
-      if (existingIngredient) {
+      if (matchingKeyOwnedIngredients) {
         // If the ingredient is already in the ownedIngredients, update the remaining quantity
-        updatedOwnedIngredients[existingIngredient].remaining += parseFloat(quantity);
+        updatedOwnedIngredients[matchingKeyOwnedIngredients].remaining += parseFloat(quantity);
       } else {
         // If the ingredient is not in the ownedIngredients, create a new entry with the used and remaining quantities
         updatedOwnedIngredients[ingredient] = {
           used: 0,
           remaining: parseFloat(quantity),
         };
+        matchingKeyOwnedIngredients = ingredient
       }
     
-      // Check if the ingredient exists in shoppingList using case-insensitive comparison
-      const matchingIngredient = Object.keys(updatedShoppingList).find((key) =>
-        handlePluralization(key.toLowerCase().trim()) === ingredient
-      );
-    
-      if (matchingIngredient) {
+      if (matchingKeyShoppingList) {
         // Calculate the remaining quantity needed for the shopping list
-        const neededQuantity = Math.max(updatedShoppingList[matchingIngredient] - updatedOwnedIngredients[matchingIngredient].remaining, 0);
-        const oldRemaining = updatedOwnedIngredients[matchingIngredient].remaining;
-        const oldUsed = updatedOwnedIngredients[matchingIngredient].used;
+        const neededQuantity = Math.max(updatedShoppingList[matchingKeyShoppingList] - updatedOwnedIngredients[matchingKeyOwnedIngredients].remaining, 0);
+        const oldRemaining = updatedOwnedIngredients[matchingKeyOwnedIngredients].remaining;
+        const oldUsed = updatedOwnedIngredients[matchingKeyOwnedIngredients].used;
     
         if (neededQuantity > 0) {
           // Update the shopping list if there's still a need for the ingredient
-          updatedShoppingList[matchingIngredient] = neededQuantity;
-          updatedOwnedIngredients[matchingIngredient] = {
+          updatedShoppingList[matchingKeyShoppingList] = neededQuantity;
+          updatedOwnedIngredients[matchingKeyOwnedIngredients] = {
             used: oldUsed + oldRemaining,
             remaining: 0,
           };
         } else {
           // If the needed quantity is zero or less, remove the ingredient from the shopping list
-          updatedOwnedIngredients[matchingIngredient] = {
-            used: oldUsed + updatedShoppingList[matchingIngredient],
-            remaining: oldRemaining - updatedShoppingList[matchingIngredient],
+          updatedOwnedIngredients[matchingKeyOwnedIngredients] = {
+            used: oldUsed + updatedShoppingList[matchingKeyShoppingList],
+            remaining: oldRemaining - updatedShoppingList[matchingKeyShoppingList],
           };
-          delete updatedShoppingList[matchingIngredient];
+          delete updatedShoppingList[matchingKeyShoppingList];
         }
       }
     
